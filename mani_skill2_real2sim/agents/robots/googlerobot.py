@@ -55,7 +55,8 @@ class GoogleRobot(BaseAgent):
             self.robot.get_links(), "link_finger_tip_left"
         )
 
-    def get_gripper_closedness(self):
+    @property
+    def gripper_closedness(self):
         finger_qpos = self.robot.get_qpos()[-4:-2]
         finger_qlim = self.robot.get_qlimits()[-4:-2, -1]
         return np.maximum(np.mean(finger_qpos / finger_qlim), 0.0)

@@ -5,6 +5,7 @@ from typing import Dict, Union
 
 import numpy as np
 import sapien.core as sapien
+from transforms3d.euler import mat2euler, quat2euler
 from gymnasium import spaces
 
 from mani_skill2_real2sim import format_path
@@ -171,7 +172,15 @@ class BaseAgent:
     # Observations
     # -------------------------------------------------------------------------- #
     def get_proprioception(self):
-        obs = OrderedDict(qpos=self.robot.get_qpos(), qvel=self.robot.get_qvel())
+        base_pose = self.base_pose.to_transformation_matrix()
+        ee_pose = self.ee_pose.to_transformation_matrix()
+        ee_in_base = np.linalg.inv(base_pose) @ ee_pose
+        pos = ee_in_base[:3, 3]
+        rpy = mat2euler(ee_in_base[:3, :3], axes="sxyz")
+        gripper_nwidth = 1 - self.gripper_closedness
+        eef_pos = np.concatenate([pos, rpy, [gripper_nwidth]])
+
+        obs = OrderedDict(qpos=self.robot.get_qpos(), qvel=self.robot.get_qvel(), eef_pos=eef_pos)
         controller_state = self.controller.get_state()
         if len(controller_state) > 0:
             obs.update(controller=controller_state)
