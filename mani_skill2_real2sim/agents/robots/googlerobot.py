@@ -34,7 +34,6 @@ class GoogleRobot(BaseAgent):
         self.base_inertial_link = [
             x for x in self.robot.get_links() if x.name == "link_base_inertial"
         ][0]
-        self.ee_link = [x for x in self.robot.get_links() if x.name == "link_gripper_tcp"][0]
 
         self.finger_right_joint = get_entity_by_name(
             self.robot.get_joints(), "joint_finger_right"
@@ -56,8 +55,7 @@ class GoogleRobot(BaseAgent):
             self.robot.get_links(), "link_finger_tip_left"
         )
 
-    @property
-    def gripper_closedness(self):
+    def get_gripper_closedness(self):
         finger_qpos = self.robot.get_qpos()[-4:-2]
         finger_qlim = self.robot.get_qlimits()[-4:-2, -1]
         return np.maximum(np.mean(finger_qpos / finger_qlim), 0.0)
@@ -190,10 +188,6 @@ class GoogleRobot(BaseAgent):
     @property
     def base_pose(self):
         return self.base_link.get_pose()
-
-    @property
-    def ee_pose(self):
-        return self.ee_link.get_pose()
 
     def set_base_pose(self, xy):
         # set the x and y coordinates of the robot base
