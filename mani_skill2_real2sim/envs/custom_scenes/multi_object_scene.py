@@ -441,12 +441,12 @@ class MultiObjectOpenDrawerInSceneEnv(CustomOtherObjectsInSceneEnv): # CustomSce
         self._initialize_episode_stats()
 
         obs, info = super().reset(seed=self._episode_seed, options=options) # articulations are loaded here
-        
+
         if self.task[0] == "drawer":
             self.joint_idx = self.joint_names.index(f"{self.drawer_id}_drawer_joint")
 
         # keep top drawer closed (do nothing)
-        
+
         # open the bottom drawer
         bottom_drawer_joint_idx = self.joint_names.index(f"bottom_drawer_joint")
         tmp = [0.0] * self.art_obj.dof
@@ -519,18 +519,17 @@ class MultiObjectOpenDrawerInSceneEnv(CustomOtherObjectsInSceneEnv): # CustomSce
         rgb_overlay_paths = [
             str(ASSET_DIR / f"real_inpainting/open_drawer_{i}.png") for i in overlay_ids
         ]
-        # robot_init_xs = [0.644, 0.765, 0.889, 0.652, 0.752, 0.851, 0.665, 0.765, 0.865]
-        robot_init_xs = [0.752]
+        robot_init_xs = [0.644, 0.652, 0.665, 0.620, 0.630, 0.640, 0.650, 0.660, 0.670]
         robot_init_ys = [
-            # -0.179,
-            # -0.182,
-            # -0.203,
-            # 0.009,
+            -0.179,
+            -0.182,
+            -0.203,
             0.009,
-            # 0.035,
-            # 0.224,
-            # 0.222,
-            # 0.222,
+            0.009,
+            0.035,
+            0.224,
+            0.222,
+            0.222,
         ]
         robot_init_rotzs = [-0.03, -0.02, -0.06, 0, 0, 0, 0, -0.025, -0.025]
         idx_chosen = self._episode_rng.choice(len(overlay_ids))
@@ -604,9 +603,9 @@ class MultiObjectOpenDrawerInSceneEnv(CustomOtherObjectsInSceneEnv): # CustomSce
 
             consecutive_grasp = self.consecutive_grasp >= 5
             diff_obj_height = self.obj.pose.p[2] - self.obj_height_after_settle
-            self.lifted_obj = self.lifted_obj or (flag and (diff_obj_height > 0.01))
+            self.lifted_obj = self.lifted_obj or (flag and (diff_obj_height > 0.025))
             lifted_object_significantly = self.lifted_obj and (
-                diff_obj_height > 0.02
+                diff_obj_height > 0.025
             )
 
             if self.require_lifting_obj_for_success:
@@ -670,17 +669,17 @@ class CustomMultiObjectOpenDrawerInSceneEnv(MultiObjectOpenDrawerInSceneEnv):
 # ---------------------------------------------------------------------------- #
 # Pick place drawer tasks
 # ---------------------------------------------------------------------------- #
-@register_env("MultiObjectGraspSingleOpenedCokeCanInScene-v0", max_episode_steps=10)
+@register_env("MultiObjectGraspSingleOpenedCokeCanInScene-v0", max_episode_steps=10000)
 class PickCokeCanCustomInSceneEnv(CustomMultiObjectOpenDrawerInSceneEnv):
     # drawer_ids = ["top", "middle", "bottom"]
     task_info = [("object", "grasp", "opened_coke_can")]
 
-@register_env("MultiObjectGraspSingleAppleInScene-v0", max_episode_steps=10)
+@register_env("MultiObjectGraspSingleAppleInScene-v0", max_episode_steps=10000)
 class PickCokeCanCustomInSceneEnv(CustomMultiObjectOpenDrawerInSceneEnv):
     # drawer_ids = ["top", "middle", "bottom"]
     task_info = [("object", "grasp", "apple")]
 
-@register_env("MultiObjectGraspSingleSpongeInScene-v0", max_episode_steps=10)
+@register_env("MultiObjectGraspSingleSpongeInScene-v0", max_episode_steps=10000)
 class PickCokeCanCustomInSceneEnv(CustomMultiObjectOpenDrawerInSceneEnv):
     # drawer_ids = ["top", "middle", "bottom"]
     task_info = [("object", "grasp", "sponge")]
@@ -689,7 +688,7 @@ class PickCokeCanCustomInSceneEnv(CustomMultiObjectOpenDrawerInSceneEnv):
 # ---------------------------------------------------------------------------- #
 # Open drawer tasks
 # ---------------------------------------------------------------------------- #
-@register_env("MultiObjectOpenTopDrawerCustomInScene-v0", max_episode_steps=113)
+@register_env("MultiObjectOpenTopDrawerCustomInScene-v0", max_episode_steps=10000)
 class OpenTopDrawerCustomInSceneEnv(CustomMultiObjectOpenDrawerInSceneEnv):
     task_info = [("drawer", "open", "top")]
     # drawer_ids = ["top"]
@@ -698,7 +697,7 @@ class OpenTopDrawerCustomInSceneEnv(CustomMultiObjectOpenDrawerInSceneEnv):
 # ---------------------------------------------------------------------------- #
 # Close drawer tasks
 # ---------------------------------------------------------------------------- #
-@register_env("MultiObjectCloseBottomDrawerCustomInScene-v0", max_episode_steps=113)
+@register_env("MultiObjectCloseBottomDrawerCustomInScene-v0", max_episode_steps=10000)
 class CloseBottomDrawerCustomInSceneEnv(CustomMultiObjectOpenDrawerInSceneEnv):
     task_info = [("drawer", "close", "bottom")]
     # drawer_ids = ["bottom"]
