@@ -180,9 +180,9 @@ class MultiObjectOpenDrawerInSceneEnv(CustomOtherObjectsInSceneEnv): # CustomSce
                 self.distractor_objs.append(distractor_obj)
                 
         # HACK: if the object doesn't exist, set it accordingly
-        if self.obj is None:
-            self.obj = self.distractor_objs[0]
-            self.distractor_objs = self.distractor_objs[1:]
+        # if self.obj is None:
+        #     self.obj = self.distractor_objs[0]
+        #     self.distractor_objs = self.distractor_objs[1:]
             
             
     # def _get_default_scene_config(self):
@@ -267,125 +267,193 @@ class MultiObjectOpenDrawerInSceneEnv(CustomOtherObjectsInSceneEnv): # CustomSce
         )
         p = np.hstack([obj_init_xy, obj_init_z])
         q = obj_init_rot_quat
+        
+        if self.task_info[0][0] == "object":
 
-        # if a main target object exists, then fix its pose first
-        if self.obj is not None:
-            # Rotate along z-axis
-            if obj_init_options.get("init_rand_rot_z", False):
-                ori = self._episode_rng.uniform(0, 2 * np.pi)
-                q = qmult(euler2quat(0, 0, ori), q)
+            # if a main target object exists, then fix its pose first
+            if self.obj is not None:
+                # Rotate along z-axis
+                if obj_init_options.get("init_rand_rot_z", False):
+                    ori = self._episode_rng.uniform(0, 2 * np.pi)
+                    q = qmult(euler2quat(0, 0, ori), q)
 
-            # Rotate along a random axis by a small angle
-            if (
-                init_rand_axis_rot_range := obj_init_options.get(
-                    "init_rand_axis_rot_range", 0.0
-                )
-            ) > 0:
-                axis = self._episode_rng.uniform(-1, 1, 3)
-                axis = axis / max(np.linalg.norm(axis), 1e-6)
-                ori = self._episode_rng.uniform(0, init_rand_axis_rot_range)
-                q = qmult(q, axangle2quat(axis, ori, True))
-            self.obj.set_pose(sapien.Pose(p, q))
-
-            # Move the robot far away to avoid collision
-            # The robot should be initialized later in _initialize_agent (in base_env.py)
-            self.agent.robot.set_pose(sapien.Pose([-10, 0, 0]))
-
-            # Lock rotation around x and y to let the target object fall onto the table
-            self.obj.lock_motion(0, 0, 0, 1, 1, 0)
-            self._settle(0.5)
-
-            # Unlock motion
-            self.obj.lock_motion(0, 0, 0, 0, 0, 0)
-            # NOTE(jigu): Explicit set pose to ensure the actor does not sleep
-            self.obj.set_pose(self.obj.pose)
-            self.obj.set_velocity(np.zeros(3))
-            self.obj.set_angular_velocity(np.zeros(3))
-            self._settle(0.5)
-
-            # Some objects need longer time to settle
-            lin_vel = np.linalg.norm(self.obj.velocity)
-            ang_vel = np.linalg.norm(self.obj.angular_velocity)
-            if lin_vel > 1e-3 or ang_vel > 1e-2:
-                self._settle(1.5)
-
-            # Record the object height after it settles
-            self.obj_height_after_settle = self.obj.pose.p[2]
-
-        if len(self.distractor_objs) > 0:
-            # Set distractor objects
-            for distractor_obj in self.distractor_objs:
-                distractor_obj_init_options = (
-                    self.obj_init_options.get(
-                        distractor_obj.name, {}
+                # Rotate along a random axis by a small angle
+                if (
+                    init_rand_axis_rot_range := obj_init_options.get(
+                        "init_rand_axis_rot_range", 0.0
                     )
-                )
+                ) > 0:
+                    axis = self._episode_rng.uniform(-1, 1, 3)
+                    axis = axis / max(np.linalg.norm(axis), 1e-6)
+                    ori = self._episode_rng.uniform(0, init_rand_axis_rot_range)
+                    q = qmult(q, axangle2quat(axis, ori, True))
+                self.obj.set_pose(sapien.Pose(p, q))
 
-                distractor_init_xy = distractor_obj_init_options.get(
-                    "init_xy", None
-                )
+                # Move the robot far away to avoid collision
+                # The robot should be initialized later in _initialize_agent (in base_env.py)
+                self.agent.robot.set_pose(sapien.Pose([-10, 0, 0]))
 
-                if distractor_init_xy is None:
-                    while True:
-                        distractor_init_xy = (
-                            obj_init_xy
-                            + self._episode_rng.uniform(-0.05, 0.05, [2])
-                        )  # hardcoded for now
-                        distractor_init_xy = np.clip(
-                            distractor_init_xy, [-0.08, -0.02], [-0.02, 0.08]
+                # Lock rotation around x and y to let the target object fall onto the table
+                self.obj.lock_motion(0, 0, 0, 1, 1, 0)
+                self._settle(0.5)
+
+                # Unlock motion
+                self.obj.lock_motion(0, 0, 0, 0, 0, 0)
+                # NOTE(jigu): Explicit set pose to ensure the actor does not sleep
+                self.obj.set_pose(self.obj.pose)
+                self.obj.set_velocity(np.zeros(3))
+                self.obj.set_angular_velocity(np.zeros(3))
+                self._settle(0.5)
+
+                # Some objects need longer time to settle
+                lin_vel = np.linalg.norm(self.obj.velocity)
+                ang_vel = np.linalg.norm(self.obj.angular_velocity)
+                if lin_vel > 1e-3 or ang_vel > 1e-2:
+                    self._settle(1.5)
+
+                # Record the object height after it settles
+                self.obj_height_after_settle = self.obj.pose.p[2]
+
+            if len(self.distractor_objs) > 0:
+                # Set distractor objects
+                for distractor_obj in self.distractor_objs:
+                    distractor_obj_init_options = (
+                        self.obj_init_options.get(
+                            distractor_obj.name, {}
                         )
-                        if (
-                            np.linalg.norm(distractor_init_xy - obj_init_xy)
-                            > 0.03
-                        ):
-                            break
+                    )
 
-                p = np.hstack(
-                    [distractor_init_xy, obj_init_z]
-                )  # let distractor fall from the same height as the main object
-                distractor_init_rot_quat = distractor_obj_init_options.get(
-                    "init_rot_quat", None
-                )
-                q = (
-                    obj_init_rot_quat
-                    if distractor_init_rot_quat is None
-                    else distractor_init_rot_quat
-                )
+                    distractor_init_xy = distractor_obj_init_options.get(
+                        "init_xy", None
+                    )
 
-                distractor_obj.set_pose(sapien.Pose(p, q))
-                distractor_obj.set_velocity(np.zeros(3))
-                distractor_obj.set_angular_velocity(np.zeros(3))
-                # Lock rotation around x and y
-                distractor_obj.lock_motion(1, 1, 0, 1, 1, 0)
+                    if distractor_init_xy is None:
+                        while True:
+                            distractor_init_xy = (
+                                obj_init_xy
+                                + self._episode_rng.uniform(-0.05, 0.05, [2])
+                            )  # hardcoded for now
+                            distractor_init_xy = np.clip(
+                                distractor_init_xy, [-0.08, -0.02], [-0.02, 0.08]
+                            )
+                            if (
+                                np.linalg.norm(distractor_init_xy - obj_init_xy)
+                                > 0.03
+                            ):
+                                break
 
-                # debug
-                # sim_steps = int(self.sim_freq * 0.5)
-                # for _ in range(sim_steps):
-                #     print(distractor_obj.pose)
-                #     while True:
-                #         self.render_human()
-                #         sapien_viewer = self.viewer
-                #         if sapien_viewer.window.key_down("0"):
-                #             break
-                #     self._scene.step()
+                    p = np.hstack(
+                        [distractor_init_xy, obj_init_z]
+                    )  # let distractor fall from the same height as the main object
+                    distractor_init_rot_quat = distractor_obj_init_options.get(
+                        "init_rot_quat", None
+                    )
+                    q = (
+                        obj_init_rot_quat
+                        if distractor_init_rot_quat is None
+                        else distractor_init_rot_quat
+                    )
 
-                # Let distractor objects fall onto the table
-                self._settle(0.5)
+                    distractor_obj.set_pose(sapien.Pose(p, q))
+                    distractor_obj.set_velocity(np.zeros(3))
+                    distractor_obj.set_angular_velocity(np.zeros(3))
+                    # Lock rotation around x and y
+                    distractor_obj.lock_motion(1, 1, 0, 1, 1, 0)
 
-            # Unlock motion
-            for distractor_obj in self.distractor_objs:
-                distractor_obj.lock_motion(0, 0, 0, 0, 0, 0)
-                distractor_obj.set_pose(distractor_obj.pose)
-                distractor_obj.set_velocity(np.zeros(3))
-                distractor_obj.set_angular_velocity(np.zeros(3))
-                self._settle(0.5)
+                    # debug
+                    # sim_steps = int(self.sim_freq * 0.5)
+                    # for _ in range(sim_steps):
+                    #     print(distractor_obj.pose)
+                    #     while True:
+                    #         self.render_human()
+                    #         sapien_viewer = self.viewer
+                    #         if sapien_viewer.window.key_down("0"):
+                    #             break
+                    #     self._scene.step()
 
-            lin_vel, ang_vel = 0.0, 0.0
-            for distractor_obj in self.distractor_objs:
-                lin_vel += np.linalg.norm(distractor_obj.velocity)
-                ang_vel += np.linalg.norm(distractor_obj.angular_velocity)
-            if lin_vel > 1e-3 or ang_vel > 1e-2:
-                self._settle(1.5)
+                    # Let distractor objects fall onto the table
+                    self._settle(0.5)
+
+                # Unlock motion
+                for distractor_obj in self.distractor_objs:
+                    distractor_obj.lock_motion(0, 0, 0, 0, 0, 0)
+                    distractor_obj.set_pose(distractor_obj.pose)
+                    distractor_obj.set_velocity(np.zeros(3))
+                    distractor_obj.set_angular_velocity(np.zeros(3))
+                    self._settle(0.5)
+
+                lin_vel, ang_vel = 0.0, 0.0
+                for distractor_obj in self.distractor_objs:
+                    lin_vel += np.linalg.norm(distractor_obj.velocity)
+                    ang_vel += np.linalg.norm(distractor_obj.angular_velocity)
+                if lin_vel > 1e-3 or ang_vel > 1e-2:
+                    self._settle(1.5)
+        elif self.task_info[0][0] == "drawer":
+            if len(self.distractor_objs) > 0:
+                for distractor_obj in self.distractor_objs:
+                    distractor_obj_init_options = (
+                        self.obj_init_options.get(
+                            distractor_obj.name, {}
+                        )
+                    )
+                    
+                    distractor_init_xy = distractor_obj_init_options.get(
+                        "init_xy", None
+                    )
+                    
+                    p = np.hstack(
+                        [distractor_init_xy, obj_init_z]
+                    )  # let distractor fall from the same height as the main object
+                    
+                    # q = obj_init_rot_quat
+
+                    # # Rotate along z-axis
+                    # if self.obj_init_options.get("init_rand_rot_z", False):
+                    #     ori = self._episode_rng.uniform(0, 2 * np.pi)
+                    #     q = qmult(euler2quat(0, 0, ori), q)
+
+                    # # Rotate along a random axis by a small angle
+                    # if (
+                    #     init_rand_axis_rot_range := self.obj_init_options.get(
+                    #         "init_rand_axis_rot_range", 0.0
+                    #     )
+                    # ) > 0:
+                    #     axis = self._episode_rng.uniform(-1, 1, 3)
+                    #     axis = axis / max(np.linalg.norm(axis), 1e-6)
+                    #     ori = self._episode_rng.uniform(0, init_rand_axis_rot_range)
+                    #     q = qmult(q, axangle2quat(axis, ori, True))
+                    q = obj_init_rot_quat
+                    distractor_obj.set_pose(sapien.Pose(p, q))
+                    
+                    # Move the robot far away to avoid collision
+                    # The robot should be initialized later in _initialize_agent (in base_env.py)
+                    self.agent.robot.set_pose(sapien.Pose([-10, 0, 0]))
+
+                    # (Sid) NOTE: disabled this for now since it may cause some objects to fall off the table
+                    # # Lock rotation around x and y to let the target object fall onto the table
+                    # distractor_obj.lock_motion(0, 0, 0, 1, 1, 0)
+                    # self._settle(0.5)
+
+                    # Unlock motion
+                    distractor_obj.lock_motion(0, 0, 0, 0, 0, 0)
+
+                    # NOTE(jigu): Explicit set pose to ensure the actor does not sleep
+                    distractor_obj.set_pose(distractor_obj.pose)
+                    distractor_obj.set_velocity(np.zeros(3))
+                    distractor_obj.set_angular_velocity(np.zeros(3))
+                    self._settle(0.5)
+
+                    # Some objects need longer time to settle
+                    lin_vel = np.linalg.norm(distractor_obj.velocity)
+                    ang_vel = np.linalg.norm(distractor_obj.angular_velocity)
+                    if lin_vel > 1e-3 or ang_vel > 1e-2:
+                        self._settle(1.5)
+
+                    # # Record the object height after it settles
+                    # self.obj_height_after_settle = distractor_obj.pose.p[2]
+                    
+                    
+                    
 
     def _load_articulations(self):
         filename = str(self.asset_root / f"{self.station_name}.urdf")
@@ -410,11 +478,11 @@ class MultiObjectOpenDrawerInSceneEnv(CustomOtherObjectsInSceneEnv): # CustomSce
             self.joint_idx = self.joint_names.index(f"{self.drawer_id}_drawer_joint")
 
     def reset(self, seed=None, options=None):
-            # # remove distractor objects
-            # for distractor_obj in self.distractor_objs:
-            #     self._scene.remove_actor(distractor_obj)
-            # print("Remove all distractor objects")
-            # self.distractor_objs = []
+        # # remove distractor objects
+        # for distractor_obj in self.distractor_objs:
+        #     self._scene.remove_actor(distractor_obj)
+        # print("Remove all distractor objects")
+        # self.distractor_objs = []
 
         if options is None:
             options = dict()
@@ -511,7 +579,40 @@ class MultiObjectOpenDrawerInSceneEnv(CustomOtherObjectsInSceneEnv): # CustomSce
                 "light_mode": self.light_mode,
             }
         )
+        
+        obs = self._get_proprio(obs)
+        
         return obs, info
+    
+    def step(self, *args, **kwargs):
+        obs, reward, terminated, done, info = super().step(*args, **kwargs)
+        obs = self._get_proprio(obs)
+        
+        return obs, reward, terminated, done, info
+    
+    def _get_proprio(self, obs):
+        proprio = self.agent.get_proprioception()
+        
+        from mani_skill2_real2sim.utils.sapien_utils import vectorize_pose
+        eef_pose_world = self.tcp.pose
+        eef_pose_relative = self.agent.robot.pose.inv() * eef_pose_world
+        eef_pose_vec = vectorize_pose(eef_pose_relative)  # [x,y,z,qx,qy,qz,qw]
+        
+        # Get gripper state from proprioception
+        agent_proprio = obs["agent"]
+        qpos = agent_proprio["qpos"]
+        # For Google Robot, gripper joints are typically the last joints
+        # We'll use the first gripper joint as the gripper openness indicator
+        gripper_state = float(qpos[-1]) if len(qpos) > 7 else 0.0
+        
+        # Build 8D state vector: EEF pose (7D) + gripper (1D)
+        state_vec = np.concatenate([eef_pose_vec, [gripper_state]], axis=0).astype(np.float32)
+        obs["proprio"] = state_vec
+        
+        # create a sphere at this position
+        # self._create_visual_sphere(state_vec[:3], radius=0.05, color=(0.0, 1.0, 0.0, 0.5))  # Green sphere
+        
+        return obs
 
     def _additional_prepackaged_config_reset(self, options):
         # use prepackaged evaluation configs under visual matching setup
@@ -558,6 +659,29 @@ class MultiObjectOpenDrawerInSceneEnv(CustomOtherObjectsInSceneEnv): # CustomSce
             self._configure_agent()
             return True
         return False
+    
+    def _create_visual_sphere(self, position, radius=0.02, color=(1.0, 0.0, 0.0, 0.5)):
+        """
+        Create an uncollidable, semi-transparent sphere at a given position.
+
+        Args:
+            position (np.ndarray): The [x, y, z] position of the sphere.
+            radius (float): Radius of the sphere.
+            color (tuple): RGBA color of the sphere (default: red, semi-transparent).
+        """
+        # Create a material for the sphere
+        # material = self._scene.create_physical_material(0, 0, 0)
+        # material.base_color = color[:3]  # RGB
+        # material.metallic = 0.0
+        # material.roughness = 1.0
+        # material.transparency = color[3]
+
+        # Add a visual-only sphere to the scene
+        builder = self._scene.create_actor_builder()
+        builder.add_sphere_visual(radius=radius)
+        sphere = builder.build_static(name="visual_sphere")
+        sphere.set_pose(sapien.Pose(position))
+        # return sphere
 
     def _initialize_episode_stats(self):
         self.episode_stats = OrderedDict(
